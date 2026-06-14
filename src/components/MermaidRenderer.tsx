@@ -6,13 +6,20 @@ interface Props {
   content: string;
   filename: string;
   theme: "default" | "dark";
+  onReady?: (width: number, height: number) => void;
 }
 
-export default function MermaidRenderer({ content, filename, theme }: Props) {
+export default function MermaidRenderer({
+  content,
+  filename,
+  theme,
+  onReady,
+}: Props) {
   const [svg, setSvg] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const cancelled = useRef(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     cancelled.current = false;
@@ -50,6 +57,17 @@ export default function MermaidRenderer({ content, filename, theme }: Props) {
     };
   }, [content, theme]);
 
+  // Report rendered SVG dimensions to parent for auto-fit
+  useEffect(() => {
+    if (!svg || !onReady) return;
+    requestAnimationFrame(() => {
+      const svgEl = containerRef.current?.querySelector("svg");
+      if (!svgEl) return;
+      const { width, height } = svgEl.getBoundingClientRect();
+      if (width > 0 && height > 0) onReady(width, height);
+    });
+  }, [svg, onReady]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-48 text-sm text-gray-400 dark:text-gray-600">
@@ -80,6 +98,7 @@ export default function MermaidRenderer({ content, filename, theme }: Props) {
 
   return (
     <div
+      ref={containerRef}
       className="mermaid-output"
       dangerouslySetInnerHTML={{ __html: svg }}
     />
