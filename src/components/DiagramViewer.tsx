@@ -16,83 +16,46 @@ const MermaidRenderer = dynamic(() => import("./MermaidRenderer"), {
 const APP_TITLE = "Meridian";
 const MIN_SCALE = 0.05;
 const MAX_SCALE = 8;
-const PADDING = 64; // px padding inside the canvas before the diagram
+const PADDING = 64;
 
 export function DiagramViewer({ diagrams }: { diagrams: Diagram[] }) {
-  const [selected, setSelected] = useState<Diagram | null>(
-    diagrams[0] ?? null
-  );
+  const [selected, setSelected] = useState<Diagram | null>(diagrams[0] ?? null);
   const [dark, setDark] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [scale, setScale] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const [dragging, setDragging] = useState(false);
 
   const canvasRef = useRef<HTMLDivElement>(null);
-  const dragging = useRef(false);
   const lastPos = useRef({ x: 0, y: 0 });
+  const capturedPtr = useRef<number | null>(null);
 
-  // Apply class-based dark mode to <html>
   useEffect(() => {
     document.documentElement.classList.toggle("dark", dark);
   }, [dark]);
 
-  // Auto-fit: called by MermaidRenderer once SVG is in the DOM
-  const handleDiagramReady = useCallback(
-    (svgW: number, svgH: number) => {
-      if (!canvasRef.current) return;
-      const { width: cw, height: ch } =
-        canvasRef.current.getBoundingClientRect();
-      if (!cw || !ch) return;
-      const contentW = svgW + PADDING * 2;
-      const contentH = svgH + PADDING * 2;
-      const s = Math.min(cw / contentW, ch / contentH) * 0.9;
-      setScale(s);
-      setOffset({
-        x: (cw - contentW * s) / 2,
-        y: (ch - contentH * s) / 2,
-      });
-    },
-    [] // stable: uses only refs and state setters
-  );
+  // Auto-fit diagram to canvas when it finishes rendering
+  const handleDiagramReady = useCallback((svgW: number, svgH: number) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const { width: cw, height: ch } = canvas.getBoundingClientRect();
+    if (!cw || !ch) return;
+    const contentW = svgW + PADDING * 2;
+    const contentH = svgH + PADDING * 2;
+    const s = Math.min(cw / contentW, ch / contentH) * 0.9;
+    setScale(s);
+    setOffset({ x: (cw - contentW * s) / 2, y: (ch - contentH * s) / 2 });
+  }, []);
 
-  // Imperative event listeners — wheel/touch need passive:false; dragstart
-  // prevention stops Chrome from treating SVG elements as draggable images.
+  // Wheel zoom needs passive:false — only this needs an imperative listener
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-
-    const onMouseDown = (e: MouseEvent) => {
-      if (e.button !== 0) return;
-      e.preventDefault(); // stops browser native SVG drag (the pan-break culprit)
-      dragging.current = true;
-      lastPos.current = { x: e.clientX, y: e.clientY };
-      canvas.style.cursor = "grabbing";
-      document.body.style.userSelect = "none";
-    };
-
-    const onMouseMove = (e: MouseEvent) => {
-      if (!dragging.current) return;
-      e.preventDefault();
-      setOffset((o) => ({
-        x: o.x + e.clientX - lastPos.current.x,
-        y: o.y + e.clientY - lastPos.current.y,
-      }));
-      lastPos.current = { x: e.clientX, y: e.clientY };
-    };
-
-    const onMouseUp = () => {
-      if (!dragging.current) return;
-      dragging.current = false;
-      canvas.style.cursor = "";
-      document.body.style.userSelect = "";
-    };
-
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
-      const rect = canvas.getBoundingClientRect();
-      // Zoom toward the cursor position
-      const mx = e.clientX - rect.left;
-      const my = e.clientY - rect.top;
+      const { left, top } = canvas.getBoundingClientRect();
+      const mx = e.clientX - left;
+      const my = e.clientY - top;
       const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
       setScale((s) => {
         const ns = Math.max(MIN_SCALE, Math.min(MAX_SCALE, s * factor));
@@ -103,56 +66,36 @@ export function DiagramViewer({ diagrams }: { diagrams: Diagram[] }) {
         return ns;
       });
     };
-
-    const onDragStart = (e: DragEvent) => e.preventDefault();
-
-    const onTouchStart = (e: TouchEvent) => {
-      if (e.touches.length !== 1) return;
-      e.preventDefault();
-      dragging.current = true;
-      lastPos.current = {
-        x: e.touches[0].clientX,
-        y: e.touches[0].clientY,
-      };
-    };
-
-    const onTouchMove = (e: TouchEvent) => {
-      if (!dragging.current || e.touches.length !== 1) return;
-      e.preventDefault();
-      setOffset((o) => ({
-        x: o.x + e.touches[0].clientX - lastPos.current.x,
-        y: o.y + e.touches[0].clientY - lastPos.current.y,
-      }));
-      lastPos.current = {
-        x: e.touches[0].clientX,
-        y: e.touches[0].clientY,
-      };
-    };
-
-    const onTouchEnd = () => {
-      dragging.current = false;
-    };
-
-    canvas.addEventListener("mousedown", onMouseDown);
-    window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("mouseup", onMouseUp);
     canvas.addEventListener("wheel", onWheel, { passive: false });
-    canvas.addEventListener("dragstart", onDragStart);
-    canvas.addEventListener("touchstart", onTouchStart, { passive: false });
-    canvas.addEventListener("touchmove", onTouchMove, { passive: false });
-    canvas.addEventListener("touchend", onTouchEnd);
-
-    return () => {
-      canvas.removeEventListener("mousedown", onMouseDown);
-      window.removeEventListener("mousemove", onMouseMove);
-      window.removeEventListener("mouseup", onMouseUp);
-      canvas.removeEventListener("wheel", onWheel);
-      canvas.removeEventListener("dragstart", onDragStart);
-      canvas.removeEventListener("touchstart", onTouchStart);
-      canvas.removeEventListener("touchmove", onTouchMove);
-      canvas.removeEventListener("touchend", onTouchEnd);
-    };
+    return () => canvas.removeEventListener("wheel", onWheel);
   }, []);
+
+  // Pointer Capture API: routes all pointer events to the canvas even when
+  // the cursor leaves the element — no window listeners needed, works for
+  // both mouse and touch.
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    capturedPtr.current = e.pointerId;
+    lastPos.current = { x: e.clientX, y: e.clientY };
+    setDragging(true);
+  };
+
+  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.pointerId !== capturedPtr.current) return;
+    setOffset((o) => ({
+      x: o.x + e.clientX - lastPos.current.x,
+      y: o.y + e.clientY - lastPos.current.y,
+    }));
+    lastPos.current = { x: e.clientX, y: e.clientY };
+  };
+
+  const onPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.pointerId !== capturedPtr.current) return;
+    e.currentTarget.releasePointerCapture(e.pointerId);
+    capturedPtr.current = null;
+    setDragging(false);
+  };
 
   const selectDiagram = (d: Diagram) => {
     setSelected(d);
@@ -224,25 +167,13 @@ export function DiagramViewer({ diagrams }: { diagrams: Diagram[] }) {
           )}
         </nav>
 
-        {/* Logout */}
         <div className="shrink-0 border-t border-gray-200 dark:border-gray-800 p-3">
           <button
             onClick={handleLogout}
             className="w-full flex items-center gap-2 px-3 py-1.5 rounded text-xs text-gray-400 dark:text-gray-600 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
           >
-            <svg
-              className="w-3.5 h-3.5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              aria-hidden="true"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-              />
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
             </svg>
             Sign out
           </button>
@@ -267,19 +198,8 @@ export function DiagramViewer({ diagrams }: { diagrams: Diagram[] }) {
             className="md:hidden p-1.5 rounded text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
             aria-label="Toggle sidebar"
           >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              aria-hidden="true"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M4 6h16M4 12h16M4 18h16"
-              />
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
 
@@ -287,7 +207,6 @@ export function DiagramViewer({ diagrams }: { diagrams: Diagram[] }) {
             {selected ? selected.title : "Select a diagram"}
           </h1>
 
-          {/* Zoom controls */}
           <div className="flex items-center gap-0.5">
             <button
               onClick={() => zoom(1 / 1.2)}
@@ -312,7 +231,6 @@ export function DiagramViewer({ diagrams }: { diagrams: Diagram[] }) {
             </button>
           </div>
 
-          {/* Dark mode toggle */}
           <button
             onClick={() => setDark((d) => !d)}
             className="w-7 h-7 flex items-center justify-center rounded text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
@@ -333,8 +251,12 @@ export function DiagramViewer({ diagrams }: { diagrams: Diagram[] }) {
         {/* Canvas */}
         <div
           ref={canvasRef}
-          className="flex-1 overflow-hidden bg-[#f7f7f7] dark:bg-[#0c0c0c] cursor-grab"
-          style={{ userSelect: "none" }}
+          className={`flex-1 overflow-hidden bg-[#f7f7f7] dark:bg-[#0c0c0c] select-none ${dragging ? "cursor-grabbing" : "cursor-grab"}`}
+          style={{ touchAction: "none" }}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerUp}
         >
           <div
             style={{
@@ -342,7 +264,6 @@ export function DiagramViewer({ diagrams }: { diagrams: Diagram[] }) {
               transformOrigin: "0 0",
               display: "inline-block",
               padding: `${PADDING}px`,
-              // pointer-events:none so SVG elements don't absorb mousedown
               pointerEvents: "none",
             }}
           >
