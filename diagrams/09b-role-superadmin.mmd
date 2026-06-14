@@ -1,0 +1,63 @@
+flowchart TB
+    subgraph AdminRoleHierarchy["Internal Admin Role Hierarchy (AdminRole enum)"]
+        SA["SUPER_ADMIN\nFounder — full access\nOnly one expected"]
+        CEO["CEO\nFull access except\ncannot touch SUPER_ADMIN"]
+        CTO["CTO\nSame as CEO"]
+        ADM["ADMIN\nModeration · announcements"]
+        TECH["TECH\nCRM · analytics · system health"]
+        SUPP["SUPPORT\nUser lookup · ticket tools"]
+        EMP["EMPLOYEE\nRead-only internal dashboards"]
+        SA --> CEO
+        SA --> CTO
+        CEO --> ADM
+        CTO --> ADM
+        ADM --> TECH
+        TECH --> SUPP
+        SUPP --> EMP
+    end
+
+    subgraph AdminCockpit["Admin Dashboard (/dashboard/admin)"]
+        AC1["Overview\nplatform health + stats"]
+        AC2["Analytics\ncross-tenant usage · growth"]
+        AC3["Economics\nARR · plan distribution"]
+        AC4["Globe\nlive user session map"]
+        AC5["CRM\nuser lookup · AdminUserNote\nCRM_USER_VIEWED audit log"]
+        AC6["Promo codes\nPromoCode mint · revoke"]
+        AC7["Admins\nAdminInvite · AdminAuditLog"]
+        AC8["Security log\nAdminAuditLog browse"]
+        AC9["Users\npaginated user table"]
+        AC10["Announcements\nsite-wide banners"]
+        AC11["Testimonials\nTestimonial manage"]
+        AC12["Academy review\nCourse · cert approval"]
+        AC13["Blog\nBlogPost manage"]
+        AC14["LTI\nLti13Platform registry"]
+        AC15["Ops & infra\nPlatformFlags · AccessGateSettings\npaymentsEnabled kill switch"]
+        AC16["BYODB\nTenant bootstrap · resync\nschema version check"]
+        AC17["Tori ops\nToriRun browse · ToriUsageStat\nfeedback signals"]
+        AC18["Tech docs\nlib/tech-docs/ searchable hub"]
+        AC19["Access gate\nAccessAllowedEmail · AccessAllowedDomain"]
+    end
+
+    subgraph Impersonation["'View As' Impersonation"]
+        IMP1["Set sf_view_as cookie\nvia setViewAs() server action"]
+        IMP2["session.user.viewAs = role\nsession.user.isImpersonating = true"]
+        IMP3["getEffectiveRole(session)\nreturns impersonated role"]
+        IMP4["AdminAuditLog\naction=IMPERSONATION_STARTED"]
+        IMP5["Hides: briefing · Tori send\nOnly shows impersonated affordances"]
+    end
+
+    SA --> AdminCockpit
+    CEO --> AdminCockpit
+    CTO --> AdminCockpit
+    ADM --> AC10
+    TECH --> AC2
+    TECH --> AC3
+    TECH --> AC4
+    TECH --> AC5
+    SUPP --> AC5
+    SUPP --> AC9
+    EMP --> AC1
+
+    SA --> Impersonation
+    CEO --> Impersonation
+    CTO --> Impersonation

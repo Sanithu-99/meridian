@@ -1,0 +1,80 @@
+flowchart TB
+    subgraph Surfaces["Tori Entry Surfaces (ToriSurface enum)"]
+        S1["GLOBAL\nGlobalToriThread (top nav)"]
+        S2["PROJECT\nProjectAssistant per project"]
+        S3["CLASSROOM_TEACHER\nEducatorToriMessage"]
+        S4["CLASSROOM_STUDENT\nper-class student chat"]
+        S5["STUDY\nStudySession.messages"]
+        S6["PRIVATE\nSupportiveChatSession (24h, no log)"]
+        S7["ACADEMY\nacademy-domain tutor"]
+    end
+
+    subgraph ContextLoaders["Context Loaders (lib/tori-context.ts)"]
+        CL1["buildGlobalContext(userId)\nToday's tasks · due assignments\ncalendar · project names only"]
+        CL2["buildProjectContext(projectId)\nProject tasks · notes · members"]
+        CL3["buildStudyContext(materialId)\nMaterial content + user progress"]
+        CL4["Last 12 chat turns (chat-bot)"]
+        CL5["buildToriPersonalContext(userId)\nUserToriProfile · toriContext\nbirthday · timezone"]
+        CL6["buildAccommodationPrompt(userId)\nStudentAccommodation flags\ndyslexia · ADHD · ELL · extendedTime · ttsVoice"]
+    end
+
+    subgraph PromptAssembly["Prompt Assembly (lib/tori-*)"]
+        PA1["tori-identity-prelude.ts\n'My name is Tori' persona setup"]
+        PA2["tori-personality.ts\nteaching style + warmth"]
+        PA3["tori-briefing.ts\nmorning brief generation (Haiku)"]
+        PA4["tori-supportive.ts\nprivate mode guardrails"]
+        PA5["tori-global-tools.ts\nagentic tools (remember_fact etc.)"]
+        PA6["assistant-prompts.ts\nproject assistant persona"]
+        PA7["TODAY IS date stamp\nprevents training-cutoff year drift"]
+    end
+
+    subgraph LLMRouter["Provider Router (lib/tori-llm.ts)"]
+        LR["callLLM(messages, opts)\ncallLLMText(messages, opts)"]
+        PR{"TORI_PROVIDER env\nor user.aiApiKey provider"}
+        ANT["Anthropic\nclaude-sonnet-4-6 (educator/grading)\nclaude-haiku-4-5 (student/briefing/safety)"]
+        OAI["OpenAI\ngpt-4o-mini"]
+        GEM["Google Gemini\ngemini-2.5-flash"]
+        BYOK["User BYOK key\nuser.aiApiKey (AES-256 encrypted)\noverrides platform key"]
+    end
+
+    subgraph ModelMapping["Model Selection by Surface"]
+        MM["educator-chat → claude-sonnet-4-6\nstudent-supportive → claude-haiku-4-5\nbriefings → claude-haiku-4-5\npre-review-feedback → claude-haiku-4-5\nai-grading → claude-sonnet-4-6\ntopic-suggester → claude-haiku-4-5\nchat-bot-dm → claude-haiku-4-5\nstudy-exam-pack → claude-sonnet-4-6"]
+    end
+
+    subgraph PostCall["Post-Call Processing"]
+        PC1["recordToriRun()\nToriRun row — every call\nuserId · surface · model · tokens · duration"]
+        PC2["incrementUsage(userId, AI_REQUEST)\nUsageCounter monthly cap"]
+        PC3["ToriSession update\nengagement · frustration · breakthrough"]
+        PC4["StudentLearningModel update\nEMA blend after session\nlib/tori-learning-model.ts"]
+        PC5["ToriUsageStat upsert\ncontent-free daily counters\nfor admin analytics"]
+    end
+
+    subgraph Safety["Safety Layer (lib/safety-classifier.ts)"]
+        SF1["regexClassify(text)\nInstant — free\nSELF_HARM · ABUSE · THREAT · EXPLICIT · CRISIS"]
+        SF2["aiClassify(text)\nHaiku on regex hits\nseverity 0..1"]
+        SF3["SafetyFlag row created\n→ school admin review queue\nNEVER blocks student response"]
+    end
+
+    subgraph Memory["Memory & Personalisation"]
+        ME1["ToriMemory\nper-user named memories"]
+        ME2["ProjectAssistant.memory\nremember_fact tool\nper-project long-term memory"]
+        ME3["UserToriProfile\ngradeBand · interests\nlearningStyles · pronouns"]
+        ME4["StudentLearningModel\nadaptive per-student model\napplied in system prompt"]
+    end
+
+    Surfaces --> ContextLoaders
+    ContextLoaders --> PromptAssembly
+    PromptAssembly --> LLMRouter
+    LLMRouter --> PR
+    PR --> ANT
+    PR --> OAI
+    PR --> GEM
+    PR -->|"user has BYOK"| BYOK
+    BYOK --> ANT
+    BYOK --> OAI
+    ANT --> PostCall
+    OAI --> PostCall
+    GEM --> PostCall
+    PostCall --> Safety
+    Memory --> PromptAssembly
+    ModelMapping -.->|"informs"| LLMRouter

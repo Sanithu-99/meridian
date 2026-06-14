@@ -1,0 +1,50 @@
+flowchart LR
+    subgraph LMS["SetFlow LMS (getsetflow.app)"]
+        SFUser["User\n(NextAuth)\nSTUDENT · EDUCATOR\nFOUNDER · SCHOOL_ADMIN"]
+        SFPlan["User.plan\nFREE · STUDENT · PRO\nTEAM · SCHOOL · ENTERPRISE"]
+        SFClassroom["Classrooms\nProject.isClassroom=true\nQuiz · Submission · Grades"]
+        SFTenant["Tenant (SCHOOL / COMPANY)\nBYODB option\nseat pool · aiCreditsPerSeat"]
+    end
+
+    subgraph Academy["SetFlow Academy (academy.getsetflow.app)"]
+        AUsr["AcademyUser\n(separate auth)\nLearner / Instructor"]
+        ACourse["Courses\nCourseEnrollment\nCertificate"]
+        AInst["Institution\nkind: SCHOOL | COMPANY\nemailDomains"]
+    end
+
+    subgraph Bridge["Cross-Platform Bridges"]
+        subgraph AccountLink["Identity Link"]
+            AL["AcademyAccountLink\nsetflowUserId ↔ academyUserId\nOTP-verified, opt-in"]
+        end
+
+        subgraph CreditBridge["Plan Credits (lib/academy-bridge.ts)"]
+            CB["resolveAcademyCreditUser()\nIf SetFlow User.plan ≥ PRO\n→ PRO_INCLUDED courses free\nIf SCHOOL → seat pool unlocks"]
+        end
+
+        subgraph CompanyBridge["Company Training Bridge (COMPANY tenants)"]
+            COM["Tenant.institutionId → Institution.id\n1:1 link for COMPANY tenants\nEmployees in SetFlow dept\nsee Academy courses in /f/training\nProgress analytics in /f/analytics"]
+        end
+
+        subgraph CertBridge["Co-Issued Certificates"]
+            CERT["Certificate.institutionId\nSchool/company logo on cert\nBranded cert for SCHOOL_TENANT plan"]
+        end
+    end
+
+    subgraph Shared["What's Shared vs. Separate"]
+        SEP["SEPARATE:\nAuth (different cookies)\nUser tables (different models)\nStripe customers (different IDs)\nBilling (different systems)"]
+        SHR["SHARED:\nPrisma schema (same DB file)\nSame Vercel deployment\nmiddleware.ts routing\nlib/tori-llm.ts (both use Tori)"]
+    end
+
+    SFUser -->|"opt-in OTP flow"| AL
+    AUsr -->|"opt-in OTP flow"| AL
+    AL --> CB
+    SFPlan --> CB
+    CB -->|"unlocks PRO_INCLUDED"| ACourse
+    SFTenant -->|"institutionId"| AInst
+    AInst --> COM
+    COM -->|"employer analytics"| SFTenant
+    ACourse -->|"co-issued cert"| CERT
+    CERT --> AInst
+
+    style SEP fill:#fff3cd
+    style SHR fill:#d4edda

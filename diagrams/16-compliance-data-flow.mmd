@@ -1,0 +1,64 @@
+flowchart TB
+    subgraph DataCollection["Data Collection Points"]
+        DC1["User signup\nname · email · role\ntimezone · birthday (optional)"]
+        DC2["Tori chat\nsystem prompts with lesson body + name\nchat history per surface"]
+        DC3["Study uploads\nPDF/image → OCR → StudyMaterial\nstored Vercel Blob"]
+        DC4["Behavioral telemetry\nStudentLearningModel\nengagement · frustration · mastery"]
+        DC5["Biometric-adjacent\nAssignmentActivityEvent\ntime-on-task (no keystrokes/webcam)"]
+        DC6["Geo data\nSession.country · city · lat · lng\nfrom Vercel geo headers + geoip-lite"]
+        DC7["Parent email (COPPA)\nUser.parentEmail\nPendingParentConsent"]
+    end
+
+    subgraph Controls["Privacy Controls"]
+        subgraph COPPA["COPPA — Under-13 (lib/coppa.ts)"]
+            CP1["Age gate at Academy signup\nunder-13 → request parental consent"]
+            CP2["PendingParentConsent row\nchildEmail · parentEmail · token\n72h TTL → cron cleanup"]
+            CP3["Parent email sent via Resend\nclicks link → /api/parent-consent/[token]"]
+            CP4["On grant:\nUser.minorMode = true\nAcademyUser.minorMode = true"]
+            CP5["minorMode disables:\nStudentLearningModel writes\nCourseExamFlag (proctoring)\nPostHog · GA4 · marketing email"]
+        end
+
+        subgraph FERPA["FERPA — Student Records"]
+            FE1["BYODB:\nAll student-facing data in school's own Postgres\nProject · Quiz · Grades · Chat · Submissions"]
+            FE2["Central DB holds:\nUser identity · billing ONLY\nNo grades, no submissions, no chat"]
+            FE3["TENANT_ACCESS audit log\nAdminAuditLog action=TENANT_ACCESS\nevery admin cross-tenant DB access"]
+            FE4["API key scoped per tenant\nApiKey.tenantId\n/api/v1/* read-only for districts"]
+        end
+
+        subgraph Retention["Data Retention Limits"]
+            RT1["Chat messages: 30-day cron delete\n/api/cron/chat-cleanup\nPinned + starred exempt"]
+            RT2["Supportive chat: 24-hour hard delete\n/api/cron/supportive-cleanup\nno exceptions — never logged"]
+            RT3["Tori runs: 12 months\nToriRun rows"]
+            RT4["Parent consent tokens: 72h\nPendingParentConsent.expiresAt"]
+            RT5["ToriBriefing: last ~14 per user\nrolling window"]
+        end
+
+        subgraph Consent["Consent & Policy"]
+            CON1["Privacy policy version\nUser.privacyPolicyVersion\nUser.privacyPolicyAcknowledgedAt"]
+            CON2["Cookie consent\nlib/cookie-consent.ts\nPostHog / GA4 gated on sf-consent cookie"]
+            CON3["Marketing opt-in\nUser.marketingEnabled default false\ndisabled for minorMode users"]
+            CON4["Email opt-out\nUser.emailOptOut\n/api/email/unsubscribe magic link"]
+        end
+    end
+
+    subgraph Subprocessors["PII-Touching Subprocessors"]
+        SP1["Anthropic Claude\nSystem prompt + chat history\n(API terms: no training on paid)"]
+        SP2["OpenAI\nSame data + TTS text"]
+        SP3["Google Gemini\nSame data (paid tier: no training)"]
+        SP4["Resend\nRecipient · name · magic link"]
+        SP5["Vercel Blob\nUploaded files (PDFs, images)"]
+        SP6["Neon\nCentral DB host (DPA signed)"]
+        SP7["Clever / ClassLink SSO\nFull identity: name · email · role · district"]
+        SP8["Google Classroom API\nRoster (name + email + OAuth tokens AES-encrypted)"]
+    end
+
+    subgraph Rights["Data Subject Rights"]
+        DR1["Right to deletion\n/privacy-request → account delete flow"]
+        DR2["Right to access\n/privacy-center → export request"]
+        DR3["Breach notification\nprivacy@getsetflow.app\n72-hour notification commitment"]
+        DR4["Contact\nprivacy@getsetflow.app"]
+    end
+
+    DataCollection --> Controls
+    Controls --> Subprocessors
+    Controls --> Rights

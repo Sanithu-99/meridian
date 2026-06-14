@@ -1,0 +1,56 @@
+flowchart TB
+    subgraph AcademyHost["SetFlow Academy (academy.getsetflow.app)"]
+        subgraph Auth["Separate Auth System"]
+            AA1["AcademyUser\n(NOT a SetFlow User)\nemail · passwordHash\nisInstructor · isLearner\nminorMode"]
+            AA2["AcademySession\n32-byte hex token\nsubdomain-scoped cookie\nnever shares with apex"]
+            AA3["Sign-up flows\nemail+password · magic link\nGoogle (academy-google.ts)\nage gate → COPPA VPC for under-13"]
+            AA4["Password reset\nAcademyPasswordResetToken"]
+            AA5["Email verify\nAcademyVerificationToken"]
+        end
+
+        subgraph Roles["Academy Roles"]
+            AR1["Learner (isLearner=true)\nDefault for all signups\nCan enroll + take courses"]
+            AR2["Instructor (isInstructor=true)\nMust accept instructor agreement\nAcademyInstructorAgreement\nStripe Connect for payouts"]
+            AR3["Institution admin\nvia Institution model\nManages license seats + enrolled employees"]
+            AR4["Parent (ParentLink)\nLinked to child AcademyUser\nReceives guardian reports"]
+        end
+
+        subgraph Courses["Course Platform"]
+            CO1["Course\ncreatedById (instructor)\nslug · title · level · priceCents\nCourseStatus: DRAFT→PUBLISHED→ARCHIVED"]
+            CO2["CourseLesson\norder · duration · content\nvideo URL · transcript"]
+            CO3["CourseEnrollment\nacademyUserId → courseId\nprogress tracking"]
+            CO4["CourseLessonStatus\nper-user per-lesson completion"]
+            CO5["CourseReview\nrating · comment\nverified purchase"]
+            CO6["CoursePurchase\namountCents · Stripe paymentIntentId\ninstructor commission calculation"]
+        end
+
+        subgraph Features["Key Features"]
+            F1["Certificates\nCertificate model\nmintVerifyCode() 32-bit\nverifiable at /cert/[code]"]
+            F2["SAT Prep\n/academy-domain/sat\nSAT items · practice exams\nPracticeExamAttempt"]
+            F3["Study rooms\n/academy-domain/study-rooms\nLive tutor sessions\nTutorSession"]
+            F4["Tori tutor (Academy)\nCourseToriMessage\nToriSurface=ACADEMY\nacademy-tori.ts"]
+            F5["Learning tracks\nAcademyTrack → courses\nAcademyTrackEnrollment"]
+            F6["Instructor referrals\nInstructorReferral\nattribution tracking"]
+            F7["Verifiable transcript\nAcademyUser.transcriptCode\n/transcript/[code] public page"]
+            F8["Bloom taxonomy quiz\nacademy-bloom.ts\nper-lesson comprehension checks"]
+        end
+
+        subgraph Institutions["Institutional Mode"]
+            IN1["Institution model\nkind: SCHOOL | COMPANY | MARKETPLACE\nemaildDomains for auto-affiliation"]
+            IN2["License seats\nAcademyLicenseSeat\norgId seat pool\ncapped by license"]
+            IN3["COMPANY mode\nlinked 1:1 to SetFlow Tenant\nvia Tenant.institutionId\nacademy-institutions.ts"]
+            IN4["Branded certificates\ninstitutionId on Certificate\nco-issuer logo"]
+        end
+
+        subgraph Commerce["Commerce"]
+            COM1["AcademyCart\nAcademyCartItem\nper-learner cart"]
+            COM2["Stripe checkout\nCoursePurchase\nStripe Connect payouts to instructors"]
+            COM3["PRO_INCLUDED courses\nfree for SetFlow PRO+ users\nresolveAcademyCreditUser()"]
+        end
+    end
+
+    Auth --> Roles
+    Roles --> Courses
+    Courses --> Features
+    Features --> Institutions
+    Institutions --> Commerce

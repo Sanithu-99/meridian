@@ -1,0 +1,37 @@
+flowchart LR
+    subgraph SetFlow["SetFlow (getsetflow.app)"]
+        SFUser["User\n(NextAuth identity)\nUser.id · email · role\nUser.orgId"]
+        SFSettings["Settings page\n/settings/connections\n'Link Academy account'"]
+        SFVerify["OTP Verify Action\nconsume AcademyLinkOtp\ncreate AcademyAccountLink"]
+        SFView["SetFlow renders\nread-only Academy widget:\nEnrollments · Progress · Certs"]
+    end
+
+    subgraph Academy["SetFlow Academy (academy.getsetflow.app)"]
+        AUsr["AcademyUser\n(separate auth)\nAcademyUser.id · email"]
+        ADash["Academy Dashboard"]
+        OTPGen["Generate link code\nAcademyLinkOtp\n6-char 'ABC-XYZ'\n10-min TTL · single-use"]
+        OTPShow["Display code to user\nin Academy settings"]
+    end
+
+    subgraph Link["AcademyAccountLink (central DB)"]
+        LinkRow["AcademyAccountLink\nsetflowUserId ←→ academyUserId\ninitiatedFrom = 'academy'\nlinkedAt"]
+    end
+
+    subgraph Credit["Credit Sharing (lib/academy-bridge.ts)"]
+        CR["resolveAcademyCreditUser()\nIf SetFlow user has PRO/SCHOOL plan\n→ Academy features unlocked\nEnrollments billed to SetFlow seat pool"]
+    end
+
+    AUsr --> ADash
+    ADash --> OTPGen
+    OTPGen --> OTPShow
+    OTPShow -->|"user copies code"| SFSettings
+    SFSettings --> SFVerify
+    SFVerify -->|"validate OTP\ncreate row"| LinkRow
+    LinkRow --> SFView
+    LinkRow --> CR
+
+    SFUser -.->|"setflowUserId"| LinkRow
+    AUsr -.->|"academyUserId"| LinkRow
+
+    note1["Auth independence:\nSetFlow → apex domain cookies\nAcademy → subdomain cookies\nCookies NEVER cross"]
+    note2["Same email ≠ same account\nCross-platform linking is\nexplicit OTP opt-in only"]

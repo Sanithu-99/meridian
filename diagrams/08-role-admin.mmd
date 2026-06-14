@@ -1,0 +1,48 @@
+flowchart TB
+    subgraph Identity["School Admin Identity"]
+        A["User (role = SCHOOL_ADMIN)\nUserRole = SCHOOL_ADMIN\nAccountType = SCHOOL_MEMBER\nshell: /a/*"]
+    end
+
+    subgraph Tenant["Tenant / Institution Management"]
+        T1["Tenant settings\nname · subdomain · plan · seatCount\naiCreditsPerSeat"]
+        T2["BYODB configuration\nTenant.dbUrlEncrypted (AES-256)\nbootstrap-tenant-db script\nschema version tracking"]
+        T3["Student messaging policy\nTenant.studentMessaging\nOPEN / TEACHER_ONLY / DISABLED"]
+        T4["Email branding\nemailFrom · emailFromName\nDKIM selector (Resend-signed)"]
+        T5["LTI 1.3 platform registration\nLti13Platform per tenant\nissuer · clientId · authLoginUrl · jwksUrl"]
+        T6["SSO configuration\nClever / ClassLink / Azure AD\nper-tenant SSO settings"]
+    end
+
+    subgraph Users["User Management"]
+        U1["Invite educators / members\nOrgInvite → OrgMember"]
+        U2["Manage seat pool\nseatCount · aiCreditsPerSeat"]
+        U3["View user list\n/a/users"]
+        U4["Edit student accommodations\nStudentAccommodation (IEP/504)\non behalf of educators"]
+        U5["OneRoster import\nRosterImportLog\nCSV bulk-enroll"]
+    end
+
+    subgraph Safety["Safety & Compliance"]
+        S1["Safety flag review queue\nSafetyFlag (from safety-classifier.ts)\nRegex + Haiku detection"]
+        S2["Resolve flags\nSafetyFlag.resolvedAt\nSafetyFlag.resolvedByUserId"]
+        S3["FERPA compliance\nStudent data in tenant DB\nnever on central for BYODB schools"]
+        S4["Audit: TENANT_ACCESS log\nAdminAuditLog action=TENANT_ACCESS\nevery admin cross-tenant DB access"]
+    end
+
+    subgraph Analytics["Analytics"]
+        AN1["TenantUsageSnapshot\ncron-populated daily counts\nclassroomCount · activeStudentCount\nsubmissionCount"]
+        AN2["Guardian digest emails\ncron → parent/guardian summaries"]
+        AN3["REST API keys\nApiKey (tenant-scoped)\nfor district integration /api/v1/classrooms"]
+    end
+
+    subgraph ClassAdmin["Classroom Oversight"]
+        CA1["View all classrooms in institution"]
+        CA2["Archive / manage classes\nProject.archivedAt"]
+        CA3["Linked sections management\nProject.linkGroupId"]
+    end
+
+    A --> Tenant
+    A --> Users
+    A --> Safety
+    A --> Analytics
+    A --> ClassAdmin
+
+    T2 -->|"bootstrap once"| note1["npx tsx scripts/bootstrap-tenant-db.ts orgId\nOperator step — not self-serve"]

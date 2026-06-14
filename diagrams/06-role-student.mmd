@@ -1,0 +1,66 @@
+flowchart TB
+    subgraph Identity["Student Identity"]
+        S["User (role = STUDENT)\nUserRole = STUDENT\nAccountType = INDIVIDUAL or SCHOOL_MEMBER"]
+    end
+
+    subgraph Study["Study Mode (/study)"]
+        SM1["Upload study material\n(PDF, image, notes → OCR)"]
+        SM2["Study with Tori\n(StudySession chat)"]
+        SM3["Generate Exam Pack\nstudyGuide · flashcards\nmcqs · cheatSheet"]
+        SM4["Take mock exam\nMockExamAttempt\nTori auto-grades"]
+        SM5["Spaced repetition\nFlashcard (SM-2 algorithm)"]
+        SM6["Study reminders\nStudyReminder (daily/weekly)"]
+        SM7["Share study session\nStudySession.shareToken"]
+        SM8["Audio overview\nTori podcast (TTS)"]
+    end
+
+    subgraph Classroom["Classroom (/classroom)"]
+        C1["Join via enrollment code\nStudentEnrollment"]
+        C2["View lecture materials\nLectureMaterial"]
+        C3["Take quizzes / tests / exams\nQuizAttempt"]
+        C4["Submit assignments\nAssignmentSubmission (essay/file)"]
+        C5["Get pre-submit AI feedback\nTori reviews draft before submit"]
+        C6["View grades & feedback\ngrade · letterGrade · rubricScores"]
+        C7["Class chat\nChatChannel (PROJECT kind)"]
+        C8["Discussion board\nDiscussionThread / DiscussionPost"]
+        C9["View announcements"]
+        C10["Hall pass / late slip"]
+        C11["Book office hours\nOfficeHoursBooking"]
+    end
+
+    subgraph ToriSurfaces["Tori AI Surfaces"]
+        T1["Global Tori\nGlobalToriThread (top nav)"]
+        T2["Study Tori\nStudySession.messages"]
+        T3["Classroom student Tori\nToriSurface=CLASSROOM_STUDENT"]
+        T4["Private / supportive mode\nSupportiveChatSession\nhard-deleted 24h, never logged"]
+    end
+
+    subgraph Social["Social & Collab"]
+        SOC1["Co-study rooms\nCoStudyRoom (Pomodoro)"]
+        SOC2["DM chat\nChatChannel (DM kind)"]
+        SOC3["Note sharing\nNoteShare (SHARED visibility)"]
+    end
+
+    subgraph Account["Account & Plans"]
+        AC1["Plan: FREE → STUDENT → PRO\nAI request limits\n(10/mo FREE, 30/mo STUDENT)"]
+        AC2["Promo code redemption\nPromoCodeRedemption"]
+        AC3["TOTP 2FA\ntotpSecret (encrypted)"]
+        AC4["Privacy controls\nminorMode · parentConsentAt\nprivacyPolicyVersion"]
+        AC5["Link Academy account\nAcademyAccountLink"]
+    end
+
+    S --> Study
+    S --> Classroom
+    S --> ToriSurfaces
+    S --> Social
+    S --> Account
+
+    SM1 --> SM2
+    SM2 --> SM3
+    SM3 --> SM4
+    SM3 --> SM5
+
+    C3 --> C5
+    C4 --> C5
+
+    note1["COPPA (minorMode=true) disables:\nStudentLearningModel writes\nCourseExamFlag (proctoring)\nPostHog · GA4 · marketing email"]

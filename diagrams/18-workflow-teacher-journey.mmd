@@ -1,0 +1,79 @@
+flowchart TD
+    subgraph Signup["Onboarding"]
+        A["Sign up / sign in\n/(auth)/sign-in"]
+        B["Role picker → EDUCATOR\nUserRole = EDUCATOR"]
+        C["Fill Tori profile\noptional context for Tori"]
+    end
+
+    subgraph Setup["Classroom Setup"]
+        D["Create classroom\nProject (isClassroom=true)\nenrollmentCode auto-generated\nsubjectCode · gradeLevel · academicTerm"]
+        E{"Link to other sections?"}
+        E1["Set linkGroupId\nAnnouncements + quizzes\nmirrored across sections"]
+        E2["Standalone class"]
+        F["Set messaging policy\nOPEN / TEACHER_ONLY / DISABLED\nor inherit from school admin"]
+        G["Build roster\n3 options:\n1. Students use enrollment code\n2. Send join link\n3. OneRoster CSV import"]
+    end
+
+    subgraph ContentCycle["Content Creation Cycle"]
+        H["Upload lecture materials\nLectureMaterial\nSLIDES · NOTES · VIDEO · DOCUMENT"]
+        I{"Create assessment"}
+        I1["Write quiz manually\nQuestion (MCQ · Essay · Fill-blank)"]
+        I2["Tori generates quiz\nfrom LectureMaterial or TextbookChapter"]
+        I3["Attach rubric\nRubric + RubricCriterion"]
+        J["Set schedule\nopensAt · closesAt\nattemptsAllowed · durationMinutes"]
+        K["Publish\nQuiz.status = PUBLISHED\nAuto-posted to class chat (ASSIGNMENT_SHARE)"]
+    end
+
+    subgraph DailyTeach["Daily Teaching"]
+        L["Post announcement\nAnnouncement (pinnable)\nLinked sections → auto-mirrored"]
+        M["Take attendance\nAttendanceRecord\nPRESENT / ABSENT / LATE / EXCUSED"]
+        N["Issue hall pass / late slip"]
+        O["Run office hours\nOfficeHoursSlot\nStudents book via OfficeHoursBooking"]
+        P["Video meeting\nJitsi-powered VideoMeeting\nChat system event posted"]
+        Q["Tori for lesson planning\nEducatorToriMessage surface\nTopic suggestions · rubric help · diff"]
+    end
+
+    subgraph GradingCycle["Grading (SpeedGrader)"]
+        R["View submissions\nAssignmentSubmission list"]
+        S{"Auto-graded?"}
+        S1["MCQ auto-scored\nQuestionResponse.pointsAwarded\nper-question automatic"]
+        S2["Essay / file — manual\nAI suggestion shown first\naiGradeFeedback from claude-sonnet-4-6"]
+        T["Review originality\nassignmentSubmission.originalityScore\nAI-likelihood flag"]
+        U["Set grade\ngrade · letterGrade\nRubric criterion scores\nInline comment anchors (char offset)"]
+        V["Return for revision\nstatus = RETURNED\nor publish grade: status = GRADED"]
+        W["Override AI grade\nQuestionResponse.manualOverride\nFinal grade = teacher's word"]
+    end
+
+    subgraph Insights["Student Insights"]
+        X["View learning model\nStudentLearningModel\nmastery · engagement · frustration triggers\ndetected comm style (educator read-only)"]
+        Y["Edit accommodation\nStudentAccommodation (IEP/504)\nExtended time · TTS · language level"]
+        Z["Mastery report\nstandard codes per quiz\nper-student mastery map"]
+        AA["Activity log\nAssignmentActivityEvent\ntime-on-task (no surveillance)"]
+        AB["Guardian digest\ncron emails home\nLmsGuardian email list"]
+    end
+
+    A --> B --> C
+    C --> D
+    D --> E
+    E --> E1 & E2
+    E1 --> F
+    E2 --> F
+    F --> G
+
+    G --> ContentCycle
+    ContentCycle --> H
+    H --> I
+    I --> I1 & I2
+    I1 --> I3
+    I2 --> I3
+    I3 --> J --> K
+
+    K --> DailyTeach
+    DailyTeach --> GradingCycle
+    GradingCycle --> R --> S
+    S --> S1 & S2
+    S1 --> U
+    S2 --> T --> U
+    U --> V & W
+    V --> Insights
+    W --> Insights

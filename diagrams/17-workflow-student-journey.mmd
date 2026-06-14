@@ -1,0 +1,74 @@
+flowchart TD
+    subgraph Signup["Onboarding"]
+        A["Land on getsetflow.app"]
+        B{"How did you arrive?"}
+        B1["Email magic link or Google\n/(auth)/sign-in"]
+        B2["Org invite link\n/join/[token]"]
+        B3["LTI launch from Canvas\n/api/lti/launch"]
+        C["Role picker wizard\nSelect STUDENT\nAccountType = INDIVIDUAL"]
+        C2["Invited role applied\nrole=MEMBER or SCHOOL_MEMBER"]
+        D["Fill Tori profile\ngradeBand · interests · pronouns\ncommunicationStyle"]
+        E["Access gate\nInvite-only or domain check"]
+        F["Optional: under-13 COPPA flow\nParent email → 72h consent token"]
+    end
+
+    subgraph Daily["Typical Daily Flow"]
+        G["/dashboard\nMorning Tori briefing\ndue assignments · tasks · calendar"]
+        H{"What do I need to do?"}
+        H1["Assignment due → /classroom"]
+        H2["Exam coming → /study"]
+        H3["Just chatting → Tori orb"]
+    end
+
+    subgraph AssignmentFlow["Assignment Workflow"]
+        I["View assignment\nQuiz (HOMEWORK kind) or\nAssignmentSubmission"]
+        J["Start attempt\nQuizAttempt created\nTimer starts (extended if accommodation)"]
+        K["Answer questions\nQuestionResponse saved\nAssignmentActivityEvent pings"]
+        L["Ask Tori for help\nToriSurface=CLASSROOM_STUDENT\nContext: quiz + submission draft"]
+        M["Pre-submit review\nTori reviews draft\naiPreviewFeedback"]
+        N["Submit\nstatus=SUBMITTED\nTimestamp recorded"]
+        O["Await grading\nAuto for MCQ\nEducator for essays\nAI suggestion shown to teacher"]
+        P["View grade\ngrade · letterGrade · rubricScores\nTeacher feedback + inline comments"]
+    end
+
+    subgraph StudyFlow["Study Mode Workflow"]
+        Q["Create study session\nStudySession with goal + exam date"]
+        R["Upload materials\nPDF / image / notes → OCR\nStudyMaterial created"]
+        S["Generate exam pack\nExamPack: studyGuide · flashcards · mcqs"]
+        T["Chat with Tori\nStudySession.messages\nContext: all uploaded materials"]
+        U["Take mock exam\nMockExamAttempt (timed)\nTori grades + explains"]
+        V["Review weak areas\nFlashcard SR review queue\nSpaced repetition (SM-2)"]
+        W["Invite study partners\nStudySession.shareToken\nCollaborative chat"]
+    end
+
+    subgraph Social["Social Features"]
+        X["Co-study room\nCoStudyRoom (Pomodoro)\nPublic or private, share code"]
+        Y["DM classmates\nChatChannel (DM kind)"]
+        Z["Discussion board\nDiscussionThread replies\nin classroom"]
+    end
+
+    A --> B
+    B --> B1 & B2 & B3
+    B1 --> C
+    B2 --> C2
+    B3 --> C2
+    C --> D
+    C2 --> E
+    D --> E
+    E --> F
+    F --> G
+    E --> G
+
+    G --> H
+    H --> H1 & H2 & H3
+
+    H1 --> I
+    I --> J --> K --> L --> M --> N --> O --> P
+
+    H2 --> Q
+    Q --> R --> S --> T --> U --> V
+    T --> W
+
+    H3 --> T
+    P --> StudyFlow
+    V --> Social

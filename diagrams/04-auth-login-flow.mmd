@@ -1,0 +1,65 @@
+flowchart TD
+    subgraph Entry["Entry Points"]
+        E1["Email magic link\n/(auth)/sign-in"]
+        E2["Google OAuth\n/(auth)/sign-in"]
+        E3["Azure AD SSO\n(optional — SCHOOL/ENTERPRISE)"]
+        E4["Clever SSO\n/api/auth/sso"]
+        E5["ClassLink SSO\n/api/auth/sso"]
+        E6["LTI 1.3 launch\n(embedded in external LMS)"]
+    end
+
+    subgraph NextAuth["NextAuth.js (lib/auth.ts)"]
+        ML["Email provider\nResend → magic link email\n5/hour rate limit"]
+        GO["Google provider\nOAuth 2.0 flow"]
+        AZ["Azure AD provider\nOIDC federation"]
+        CB["Callbacks\njwt() · session()\nrole resolution\nimpersonation check"]
+        SESS[("Session row\nSessionToken · userId · expires\ncountry · city · mfaVerifiedAt")]
+    end
+
+    subgraph LTIFLOW["LTI 1.3 Flow (lib/lti13.ts)"]
+        LTIINIT["1. Platform sends login_initiation\n(iss + login_hint + target_link_uri)"]
+        LTIOIDC["2. buildAuthRedirect()\n→ Platform OIDC auth URL"]
+        LTITOKEN["3. Platform POSTs id_token\nto /api/lti/launch"]
+        LTIVFY["4. verifyIdToken()\nfetch JWKS · verify sig\ncheck nonce · version 1.3.x"]
+        LTIUSER["5. ltiRolesToUserRole()\nmap LTI roles → UserRole\ncreate/find User row"]
+        LTICOOKIE["6. Set sf-lti-launched cookie\n(CHIPS · HttpOnly · Secure · Partitioned)\nRelax CSP frame-ancestors"]
+    end
+
+    subgraph PostAuth["Post-Authentication"]
+        NEWUSER{"New user?"}
+        ONBOARD["Onboarding wizard\nrole picker → set UserRole\nset AccountType"]
+        ACCESS["Access gate check\nInvite-only or domain-restrict\n(AccessGateSettings)"]
+        MFA{"totpEnabledAt set\n+ mfaVerifiedAt null?"}
+        MFA2["/verify-2fa\nTOTP entry or backup code"]
+        ROLE["getEffectiveRole(session)\ncheck sf_view_as cookie\nreturn impersonated role if active"]
+        SHELL["Route to shell\nSTUDENT→/s · EDUCATOR→/e\nFOUNDER/MEMBER→/f\nSCHOOL_ADMIN→/a"]
+    end
+
+    E1 --> ML
+    E2 --> GO
+    E3 --> AZ
+    E4 --> CB
+    E5 --> CB
+    ML --> CB
+    GO --> CB
+    AZ --> CB
+
+    E6 --> LTIINIT
+    LTIINIT --> LTIOIDC
+    LTIOIDC --> LTITOKEN
+    LTITOKEN --> LTIVFY
+    LTIVFY --> LTIUSER
+    LTIUSER --> LTICOOKIE
+    LTICOOKIE --> CB
+
+    CB --> SESS
+    CB --> ACCESS
+    ACCESS -->|"blocked"| BLK["Access Denied\n/access-denied"]
+    ACCESS -->|"allowed"| NEWUSER
+    NEWUSER -->|"yes"| ONBOARD
+    NEWUSER -->|"no"| MFA
+    ONBOARD --> MFA
+    MFA -->|"yes"| MFA2
+    MFA2 --> ROLE
+    MFA -->|"no"| ROLE
+    ROLE --> SHELL

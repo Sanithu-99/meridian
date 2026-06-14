@@ -1,0 +1,55 @@
+flowchart TB
+    subgraph SetFlow["SetFlow App — Tori Touchpoints"]
+        subgraph Global["Everywhere in App"]
+            G1["Top-nav Tori orb\nGlobalToriThread\nKnows project names only"]
+        end
+
+        subgraph Student["Student Shell (/s)"]
+            ST1["Study Tori\nStudySession chat\nContext: uploaded materials + goal + exam date"]
+            ST2["Classroom student Tori\nPer-class tutor\nContext: quiz content + submissions + grades"]
+            ST3["Private/Supportive Tori\nSupportiveChatSession\n24h expiry, zero surveillance, zero logging"]
+            ST4["Pre-submit feedback\nTori reviews draft before student submits"]
+            ST5["Flashcard generation\nfrom StudyMaterial upload"]
+            ST6["Exam pack generation\nExamPack: studyGuide · flashcards · mcqs · cheatSheet"]
+            ST7["Mock exam grading\nMockExamAttempt → Tori grades · explains"]
+            ST8["Audio overview\nStudySessionAudioOverview\nTori writes script → TTS renders mp3"]
+        end
+
+        subgraph Educator["Educator Shell (/e)"]
+            ED1["Educator chat (Tori for Teachers)\nEducatorToriMessage\nLesson planning · rubric help · topic suggestions"]
+            ED2["Quiz generation\nfrom LectureMaterial or TextbookChapter"]
+            ED3["AI grading suggestion\nAssignmentSubmission.aiGradeFeedback\nclaude-sonnet-4-6 on essays"]
+            ED4["Originality check\nAssignmentSubmission.originalityScore\nAI-likelihood + copy-paste detection"]
+        end
+
+        subgraph Founder["Founder Shell (/f)"]
+            FD1["Project assistant\nProjectAssistant per project\nremember_fact tool → long-term memory"]
+            FD2["Writing assistant\nlib/writing-assistant.ts\nmarketing copy · product docs"]
+        end
+
+        subgraph Crons["Background (Cron jobs)"]
+            CR1["Morning briefing\n/api/cron/tori-briefings (10 min)\nToriBriefing row per user\nclaude-haiku-4-5"]
+            CR2["Guardian digest\n/api/cron/guardian-digest\nParent summaries"]
+        end
+    end
+
+    subgraph ReadAccess["What Tori Can Read (per surface)"]
+        RA1["GLOBAL: project names · task counts · due dates · calendar\nNOT: project contents · other users' data"]
+        RA2["PROJECT: tasks + notes + members in THIS project\nNOT: other projects · personal data outside project"]
+        RA3["STUDY: uploaded material content + user progress\nNOT: other users' materials"]
+        RA4["CLASSROOM_STUDENT: quiz + submission context\nNOT: other students' grades"]
+        RA5["CLASSROOM_TEACHER: full class context\nstudent list · assignments · grades · learning models"]
+        RA6["PRIVATE: nothing external — user message only\nNo logging · no context loading"]
+    end
+
+    subgraph Guardrails["Guardrails & Constraints"]
+        GR1["COPPA: minorMode=true\nNo StudentLearningModel writes\nNo CourseExamFlag (proctoring)\nNo PostHog / GA4"]
+        GR2["Impersonation: isImpersonating=true\nTori send blocked\nBriefing hidden\n'demo mode' warning shown"]
+        GR3["Usage limits\ncheckLimit(userId, AI_REQUEST)\n10/mo FREE student · 30/mo STUDENT plan"]
+        GR4["Safety classifier\nSafetyFlag → school admin\nNever blocks response"]
+        GR5["PRIVATE mode\nNo logging anywhere\nNot in ToriRun · Not in safety queue"]
+        GR6["FERPA\nTori logs (ToriRun) on central DB\nStudent data stays in tenant DB (BYODB)\nTori never cross-references tenants"]
+    end
+
+    SetFlow --> ReadAccess
+    SetFlow --> Guardrails

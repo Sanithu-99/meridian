@@ -1,0 +1,53 @@
+flowchart TD
+    subgraph Request["Incoming Request"]
+        A["Server Action / API route\nrequires tenant data"]
+    end
+
+    subgraph Central["Central DB — Neon (always)"]
+        CU[("User\nUser.orgId → Tenant.id")]
+        CT[("Tenant\nname · type · plan\ndbUrlEncrypted · dbSchemaVersion")]
+        CB[("Billing / Auth / Audit\nSession · AdminAuditLog\nToriRun · PromoCode")]
+    end
+
+    subgraph Router["lib/prisma-tenant.ts — getPrismaForTenant(orgId)"]
+        R1{"LRU cache hit?\n(max 25 clients)"}
+        R2["Fetch Tenant row\nfrom central DB"]
+        R3{"dbUrlEncrypted\nnon-null?"}
+        R4["lib/crypto.ts\ndecrypt AES-256-GCM\n→ plaintext Postgres URL"]
+        R5{"dbSchemaVersion\n== EXPECTED_SCHEMA_VERSION?"}
+        R6["Walk MIGRATIONS chain\nv1→v2: studentMessaging\nv2→v3: linkGroupId · linkKey\n(idempotent DDL only)"]
+        R7["Create PrismaClient\nbound to tenant URL"]
+        R8["Cache client\n(evict LRU on cap)"]
+        R9["Return central prisma\n(non-BYODB tenant)"]
+        FAIL["THROW — never silently\nfall through to central DB"]
+    end
+
+    subgraph TenantDB["Tenant DB (School's own Postgres)"]
+        TD[("Student-facing data\nProject · StudentEnrollment\nQuiz · AssignmentSubmission\nChatChannel · AttendanceRecord\nLectureMaterial · Announcement\nGrades · Accommodations")]
+    end
+
+    subgraph SharedData["Central DB — shared data"]
+        SD[("Cross-tenant data stays central\nUser identity · billing\nToriRun · SafetyFlag\nAdminAuditLog · Session")]
+    end
+
+    A --> R1
+    R1 -->|"hit"| TenantDB
+    R1 -->|"miss"| R2
+    R2 --> CT
+    CT --> R3
+    R3 -->|"null — not BYODB"| R9
+    R9 --> SD
+    R3 -->|"encrypted URL present"| R4
+    R4 -->|"decrypt OK"| R5
+    R4 -->|"auth tag fail"| FAIL
+    R5 -->|"current"| R7
+    R5 -->|"behind"| R6
+    R6 --> R7
+    R7 --> R8
+    R8 --> TenantDB
+    A --> CU
+    A --> CB
+
+    style FAIL fill:#ff6b6b,color:#fff
+    style TenantDB fill:#d4edda
+    style SharedData fill:#cce5ff

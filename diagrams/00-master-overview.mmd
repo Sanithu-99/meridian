@@ -1,0 +1,80 @@
+graph TB
+    subgraph Products["Two Products, One Codebase"]
+        subgraph LMS["SetFlow LMS (getsetflow.app)"]
+            LMS_SHELLS["5 User Roles\nSTUDENT /s · EDUCATOR /e\nFOUNDER /f · MEMBER /f\nSCHOOL_ADMIN /a"]
+            LMS_CLASSROOM["Classrooms\nQuizzes · Grades · Attendance\nLinked sections · Announcements"]
+            LMS_STUDY["Study Mode\nExam packs · Flashcards\nMock exams · Audio overview"]
+            LMS_PROJECTS["Projects / Teams\nTasks · Notes · Marketing\nTime tracking · Docs"]
+        end
+
+        subgraph Academy["SetFlow Academy (academy.getsetflow.app)"]
+            ACD_USERS["Separate auth\nAcademyUser (Learner / Instructor)"]
+            ACD_COURSES["Course marketplace\nEnrollment · Certificates\nSAT prep · Study rooms"]
+            ACD_INST["Institutions\nSCHOOL · COMPANY\nLicense seats · Analytics"]
+        end
+    end
+
+    subgraph Tori["Tori — AI Tutor Layer"]
+        TORI_SURFACES["7 Surfaces\nGLOBAL · PROJECT · CLASSROOM\nSTUDY · PRIVATE · ACADEMY"]
+        TORI_LLM["Provider Router\nAnthropic · OpenAI · Gemini\nUser BYOK supported"]
+        TORI_MODELS["Model selection\nclaude-sonnet-4-6 (educator/grading)\nclaude-haiku-4-5 (student/briefing)"]
+        TORI_SAFETY["Safety layer\nRegex + Haiku classifier\nSafetyFlag → school admin\nnever blocks response"]
+        TORI_MEMORY["Personalisation\nStudentLearningModel (EMA)\nStudentAccommodation (IEP/504)\nUserToriProfile"]
+    end
+
+    subgraph Auth["Auth & Identity"]
+        AUTH_SETFLOW["SetFlow Auth (NextAuth)\nMagic link · Google · Azure AD\nTOTP 2FA · Impersonation"]
+        AUTH_ACADEMY["Academy Auth (custom)\nAcademySession (subdomain cookie)\nPassword · magic link · Google"]
+        AUTH_LTI["LTI 1.3 (lib/lti13.ts)\nOIDC launch → JWKS verify\nDeep link · Grade passback"]
+        AUTH_LINK["AcademyAccountLink\nOTP-verified cross-platform link\nCredit sharing · PRO_INCLUDED courses"]
+    end
+
+    subgraph Data["Data Architecture"]
+        DATA_CENTRAL[("Central DB — Neon\nUser · Tenant · Session\nBilling · Audit · ToriRun")]
+        DATA_BYODB["BYODB\nTenant.dbUrlEncrypted (AES-256)\ngetPrismaForTenant() LRU cache\nPer-school Postgres → student data"]
+        DATA_BLOB["Vercel Blob\nFiles · images · audio · TTS mp3"]
+    end
+
+    subgraph Compliance["Compliance & Privacy"]
+        COMP_COPPA["COPPA\nAge gate · PendingParentConsent\nminorMode flag disables tracking"]
+        COMP_FERPA["FERPA\nStudent data in tenant DB\nTENANT_ACCESS audit log"]
+        COMP_RETAIN["Retention\nChat 30d · Supportive 24h\nTori logs 12mo"]
+    end
+
+    subgraph External["External Services"]
+        EXT_AI["Anthropic · OpenAI · Gemini"]
+        EXT_EMAIL["Resend (email/magic links)"]
+        EXT_BILLING["Stripe (billing/payouts)"]
+        EXT_SSO["Clever · ClassLink · Google Classroom"]
+        EXT_INFRA["Vercel Blob · Neon · PostHog · Jitsi · ElevenLabs"]
+    end
+
+    LMS_CLASSROOM --> Tori
+    LMS_STUDY --> Tori
+    LMS_PROJECTS --> Tori
+    ACD_COURSES --> Tori
+
+    LMS_SHELLS --> AUTH_SETFLOW
+    ACD_USERS --> AUTH_ACADEMY
+    AUTH_ACADEMY -.->|"AcademyAccountLink"| AUTH_SETFLOW
+    AUTH_LTI --> LMS_SHELLS
+
+    Products --> Data
+    AUTH_SETFLOW --> DATA_CENTRAL
+    AUTH_ACADEMY --> DATA_CENTRAL
+    DATA_BYODB --> DATA_CENTRAL
+
+    Products --> Compliance
+    Products --> External
+    Tori --> EXT_AI
+    AUTH_SETFLOW --> EXT_EMAIL
+    AUTH_SETFLOW --> EXT_SSO
+    LMS_CLASSROOM --> EXT_SSO
+
+    click LMS_SHELLS "06-role-student.mmd"
+    click Tori "10-tori-architecture.mmd"
+    click DATA_BYODB "02-multitenant-byodb.mmd"
+    click AUTH_SETFLOW "04-auth-login-flow.mmd"
+    click AUTH_LINK "05-account-linking.mmd"
+    click AUTH_LTI "15-lti-1.3-flow.mmd"
+    click ACD_COURSES "13-academy-overview.mmd"

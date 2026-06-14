@@ -1,0 +1,404 @@
+erDiagram
+    %% ── Core Identity ──────────────────────────────────────────────────────────
+    User {
+        String id PK
+        String email UK
+        UserRole role
+        AccountType accountType
+        AdminRole adminRole "null = customer"
+        String orgId FK
+        Plan plan
+        PlanSource planSource
+        Boolean minorMode
+        Boolean toriBriefingEnabled
+        String toriContext
+        String totpSecret "encrypted"
+        String aiApiKey "encrypted"
+        DateTime createdAt
+    }
+
+    Tenant {
+        String id PK
+        String name
+        String subdomain UK
+        TenantType type "FOUNDER_ORG|SCHOOL|COMPANY"
+        Plan plan
+        String dbUrlEncrypted "AES-256-GCM — BYODB"
+        String dbSchemaVersion
+        String studentMessaging "OPEN|TEACHER_ONLY|DISABLED"
+        String institutionId FK "COMPANY only"
+    }
+
+    OrgMember {
+        String id PK
+        String orgId FK
+        String userId FK
+        WorkspaceRole role
+        String title "COMPANY dept role"
+    }
+
+    OrgInvite {
+        String id PK
+        String orgId FK
+        String email
+        WorkspaceRole role
+        String token UK
+        DateTime expiresAt
+        DateTime acceptedAt
+    }
+
+    Session {
+        String id PK
+        String sessionToken UK
+        String userId FK
+        DateTime expires
+        String country
+        String city
+        DateTime mfaVerifiedAt
+    }
+
+    %% ── Projects / Classrooms ──────────────────────────────────────────────────
+    Project {
+        String id PK
+        String name
+        String ownerId FK
+        String orgId FK
+        Boolean isClassroom
+        String enrollmentCode UK "classroom join code"
+        String linkGroupId "linked sections"
+        Boolean messagingPaused
+        DateTime archivedAt
+    }
+
+    TeamMember {
+        String id PK
+        String userId FK
+        String projectId FK
+        WorkspaceRole role
+    }
+
+    StudentEnrollment {
+        String id PK
+        String projectId FK
+        String userId FK
+        EnrollmentStatus status
+        Float finalGrade
+    }
+
+    LectureMaterial {
+        String id PK
+        String projectId FK
+        LectureMaterialKind kind
+        String url
+        Boolean visibleToStudents
+    }
+
+    Quiz {
+        String id PK
+        String projectId FK
+        String createdById FK
+        QuizKind kind "QUIZ|TEST|EXAM|HOMEWORK"
+        QuizStatus status
+        String linkKey "linked sections"
+        Boolean aiGraded
+        String rubricId FK
+    }
+
+    Question {
+        String id PK
+        String quizId FK
+        QuestionType type
+        String prompt
+        Int points
+    }
+
+    QuizAttempt {
+        String id PK
+        String quizId FK
+        String studentId FK
+        AttemptStatus status
+        Int score
+        Int maxScore
+        Float percentage
+        Int effectiveDurationMinutes
+    }
+
+    QuestionResponse {
+        String id PK
+        String attemptId FK
+        String questionId FK
+        Float pointsAwarded
+        Boolean aiGraded
+        Boolean manualOverride
+    }
+
+    AssignmentSubmission {
+        String id PK
+        String quizId FK
+        String userId FK
+        String projectId FK
+        AssignmentSubmissionStatus status
+        Float grade
+        String aiPreviewFeedback
+        Float originalityScore
+    }
+
+    Rubric {
+        String id PK
+        String projectId FK
+        String createdById FK
+        String title
+    }
+
+    Announcement {
+        String id PK
+        String projectId FK
+        String authorId FK
+        String linkKey "linked sections"
+    }
+
+    AttendanceRecord {
+        String id PK
+        String projectId FK
+        String studentId FK
+        String status "PRESENT|ABSENT|LATE|EXCUSED"
+    }
+
+    %% ── Chat ────────────────────────────────────────────────────────────────────
+    ChatChannel {
+        String id PK
+        ChatChannelKind kind "PROJECT|DM"
+        String projectId FK
+        String dmKey UK
+    }
+
+    ChatMessage {
+        String id PK
+        String channelId FK
+        String authorId FK
+        ChatMessageKind kind
+        Boolean pinned
+    }
+
+    %% ── Study Mode ──────────────────────────────────────────────────────────────
+    StudyMaterial {
+        String id PK
+        String userId FK
+        String title
+        String inputText
+        String summary
+    }
+
+    StudySession {
+        String id PK
+        String userId FK
+        String goal
+        DateTime examDate
+        Boolean shareEnabled
+        String shareToken UK
+    }
+
+    ExamPack {
+        String id PK
+        String sessionId FK UK
+        Json pack "studyGuide|keyTerms|flashcards|mcqs|cheatSheet"
+        String model
+    }
+
+    MockExamAttempt {
+        String id PK
+        String sessionId FK
+        String userId FK
+        Json questions
+        Json grading
+        DateTime submittedAt
+    }
+
+    Flashcard {
+        String id PK
+        String studyMaterialId FK
+        String userId FK
+        Float easeFactor "SM-2"
+        Int intervalDays
+        DateTime dueDate
+    }
+
+    CoStudyRoom {
+        String id PK
+        String ownerId FK
+        String shareCode UK
+        Boolean isPublic
+        Boolean toriAsStudent
+        CoStudyRoomTimerMode timerMode
+    }
+
+    %% ── Tori AI ─────────────────────────────────────────────────────────────────
+    ToriRun {
+        String id PK
+        String userId FK
+        String surface
+        String model
+        Int tokensIn
+        Int tokensOut
+        Int durationMs
+    }
+
+    ToriBriefing {
+        String id PK
+        String userId FK
+        String body
+        DateTime emailedAt
+    }
+
+    ToriSession {
+        String id PK
+        String userId FK
+        ToriSurface surface
+        String projectId
+        Boolean frustrationDetected
+        Boolean breakthroughDetected
+    }
+
+    StudentLearningModel {
+        String id PK
+        String userId FK UK
+        Float overallMasteryScore
+        Float avgEngagementScore
+        Float modelConfidence
+        String detectedCommStyle
+    }
+
+    StudentAccommodation {
+        String id PK
+        String userId FK UK
+        Boolean hasDyslexia
+        Boolean hasADHD
+        Float extendedTimeMultiplier
+        Boolean ttsAlwaysOn
+        LanguageLevel languageLevel
+    }
+
+    GlobalToriThread {
+        String id PK
+        String userId FK UK
+    }
+
+    SupportiveChatSession {
+        String id PK
+        String userId FK
+        DateTime expiresAt "24h, cron-deleted"
+    }
+
+    %% ── LTI 1.3 ──────────────────────────────────────────────────────────────────
+    Lti13Platform {
+        String id PK
+        String tenantId FK
+        String issuer
+        String clientId
+        String authLoginUrl
+        String jwksUrl
+        String tokenUrl
+    }
+
+    %% ── Academy ──────────────────────────────────────────────────────────────────
+    AcademyUser {
+        String id PK
+        String email UK
+        Boolean isInstructor
+        Boolean isLearner
+        Boolean minorMode
+        String institutionId FK
+        String stripeCustomerId UK
+        String transcriptCode UK
+    }
+
+    AcademyAccountLink {
+        String id PK
+        String setflowUserId FK UK
+        String academyUserId FK UK
+        DateTime linkedAt
+    }
+
+    %% ── Billing & Access ─────────────────────────────────────────────────────────
+    PromoCode {
+        String id PK
+        String code UK
+        Plan tier
+        Int durationDays
+        Int maxUses
+        DateTime expiresAt
+    }
+
+    UsageCounter {
+        String id PK
+        String userId FK
+        UsageMetric metric
+        String periodKey "YYYY-MM or 'all'"
+        Int count
+    }
+
+    AdminAuditLog {
+        String id PK
+        String actorUserId FK
+        AdminRole actorRole
+        AdminAuditAction action
+        String targetUserId
+        Json metadata
+    }
+
+    PendingParentConsent {
+        String id PK
+        String childEmail
+        String parentEmail
+        String token UK
+        DateTime expiresAt "72h"
+    }
+
+    %% ── Relationships ──────────────────────────────────────────────────────────
+    User ||--o{ OrgMember : "workspace memberships"
+    User ||--o{ Session : "auth sessions"
+    User ||--o{ Project : "owns (ProjectOwner)"
+    User ||--o{ TeamMember : "project memberships"
+    User ||--o{ StudentEnrollment : "classroom enrollments"
+    User ||--o{ ToriRun : "AI call log"
+    User ||--o{ ToriBriefing : "morning briefs"
+    User ||--o{ ToriSession : "tutor sessions"
+    User ||--o| StudentLearningModel : "adaptive model"
+    User ||--o| StudentAccommodation : "IEP/504"
+    User ||--o| GlobalToriThread : "global chat"
+    User ||--o{ SupportiveChatSession : "private Tori"
+    User ||--o{ StudyMaterial : "uploads"
+    User ||--o{ StudySession : "study sessions"
+    User ||--o{ Flashcard : "spaced repetition"
+    User ||--o{ CoStudyRoom : "owns rooms"
+    User ||--o{ UsageCounter : "plan limits"
+    User ||--o| AcademyAccountLink : "cross-platform link"
+
+    Tenant ||--o{ OrgMember : "members"
+    Tenant ||--o{ Project : "org projects"
+    Tenant ||--o{ Lti13Platform : "LTI registrations"
+    User }|--o| Tenant : "orgId"
+
+    Project ||--o{ TeamMember : "roles"
+    Project ||--o{ StudentEnrollment : "enrolled students"
+    Project ||--o{ Quiz : "assessments"
+    Project ||--o{ LectureMaterial : "materials"
+    Project ||--o{ Announcement : "posts"
+    Project ||--o{ ChatChannel : "channels"
+    Project ||--o{ AssignmentSubmission : "submissions"
+    Project ||--o{ AttendanceRecord : "attendance"
+
+    Quiz ||--o{ Question : "questions"
+    Quiz ||--o{ QuizAttempt : "student attempts"
+    Quiz ||--o{ AssignmentSubmission : "free-form submissions"
+    Quiz }|--o| Rubric : "optional rubric"
+    QuizAttempt ||--o{ QuestionResponse : "per-question answers"
+    Question ||--o{ QuestionResponse : "responses"
+
+    StudySession ||--o| ExamPack : "1:1 generated pack"
+    StudySession ||--o{ MockExamAttempt : "timed attempts"
+    StudyMaterial ||--o{ Flashcard : "SR cards"
+
+    AcademyUser ||--o| AcademyAccountLink : "optional SetFlow link"
+
+    ToriRun ||--o| StudentLearningModel : "feeds learning model"

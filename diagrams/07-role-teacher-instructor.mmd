@@ -1,0 +1,62 @@
+flowchart TB
+    subgraph Identity["Educator / Instructor Identity"]
+        E["User (role = EDUCATOR)\nMaps to TEACHER in classroom\nWorkspaceRole: OWNER→TEACHER\nMANAGER→CO_TEACHER\nCONTRIBUTOR→TA"]
+    end
+
+    subgraph ClassMgmt["Classroom Management"]
+        CM1["Create classroom\nProject.isClassroom = true\nenrollmentCode generated"]
+        CM2["Link sections\nProject.linkGroupId\nShare announcements/quizzes\nacross multiple sections"]
+        CM3["Manage roster\nStudentEnrollment\nRosterImportLog (OneRoster CSV)\nGoogle Classroom sync"]
+        CM4["Set messaging policy\nOPEN / TEACHER_ONLY / DISABLED\nPer-class or inherit org policy"]
+        CM5["Archive classroom\nProject.archivedAt\nPreserves grades for transcript"]
+        CM6["Hall passes & late slips"]
+        CM7["Office hours\nOfficeHoursSlot"]
+        CM8["Attendance\nAttendanceRecord (PRESENT/ABSENT/LATE/EXCUSED)"]
+    end
+
+    subgraph Content["Content Creation"]
+        CO1["Upload lecture materials\nLectureMaterial\nSLIDES · NOTES · VIDEO · DOCUMENT · LINK · AUDIO"]
+        CO2["Create quizzes / tests / exams\nQuiz (MCQ · True/False · Short answer · Essay)"]
+        CO3["Tori quiz generation\nfrom lecture material or textbook"]
+        CO4["Manage textbooks\nTextbook → TextbookChapter\nPDF parse + chapter extraction"]
+        CO5["Announcements\nAnnouncement (pinnable)\nLinked sections → auto-mirrored"]
+        CO6["Create rubrics\nRubric + RubricCriterion\nReusable across assignments"]
+    end
+
+    subgraph Grading["Grading (SpeedGrader)"]
+        G1["Auto-grade MCQ\nQuizAttempt → QuestionResponse\nauto via correctAnswer"]
+        G2["AI grading suggestion\nTori first-pass on essays\naiGradeFeedback + aiGradeScores"]
+        G3["Manual override\nQuestionResponse.manualOverride\nTeacher sets final grade"]
+        G4["Inline submission comments\nSubmissionComment (char offset anchored)"]
+        G5["Return for revision\nAssignmentSubmissionStatus=RETURNED"]
+        G6["Originality check\nassignmentSubmission.originalityScore\nTori AI-likelihood detection"]
+    end
+
+    subgraph ToriEducator["Tori for Educators"]
+        TE1["Educator chat surface\nEducatorToriMessage\nToriSurface=CLASSROOM_TEACHER"]
+        TE2["Pre-review feedback\nTori reviews assignment before\nteacher grades it"]
+        TE3["Lesson plan + topic suggestions\nTori generates via Haiku"]
+        TE4["Student learning model view\nStudentLearningModel (educator-only)\nmastery map · engagement · frustration triggers"]
+        TE5["Accommodation profile\nStudentAccommodation (IEP/504)\nExtended time applied to QuizAttempt"]
+    end
+
+    subgraph Communication["Communication"]
+        CC1["Class chat\nChatChannel (PROJECT kind)"]
+        CC2["Discussion board\nDiscussionThread (pin/lock)"]
+        CC3["Guardian digests\ncron emails to parent emails\nLmsGuardian"]
+        CC4["DM students\nChatChannel (DM kind)"]
+    end
+
+    subgraph Analytics["Analytics & Reports"]
+        AN1["Assignment activity log\nAssignmentActivityEvent\ntime-on-task (no surveillance)"]
+        AN2["Class gradebook\nAll QuizAttempt scores by student"]
+        AN3["Mastery report\nstandard codes per assignment\nstudent mastery per standard"]
+        AN4["Attendance report\nper-student per-day"]
+    end
+
+    E --> ClassMgmt
+    E --> Content
+    E --> Grading
+    E --> ToriEducator
+    E --> Communication
+    E --> Analytics

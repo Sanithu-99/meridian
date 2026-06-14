@@ -1,0 +1,118 @@
+graph TB
+    subgraph Clients["Client Devices"]
+        Browser["Browser / PWA"]
+        Mobile["Mobile PWA"]
+        ExtLMS["External LMS\n(Canvas, Blackboard)"]
+    end
+
+    subgraph Vercel["Vercel Hosting (getsetflow.app)"]
+        MW["middleware.ts\nGeo gate → Academy subdomain rewrite → LTI CSP"]
+        subgraph NextJS["Next.js 14 (App Router + RSC)"]
+            AppShell["App Shell\n/dashboard · /study · /chat\n/classroom · /projects"]
+            AcademyRoutes["Academy Routes\napp/academy-domain/*\nacademy.getsetflow.app"]
+            AuthRoutes["Auth Routes\n/(auth)/sign-in · sign-up\n/lti/launch · /verify-2fa"]
+            AdminCockpit["Admin Cockpit\n/dashboard/admin/*\nanalytics · CRM · BYODB · Tori ops"]
+        end
+        subgraph API["API Routes (app/api/)"]
+            AuthAPI["auth/[...nextauth]\napiauth · sso"]
+            LTIAPI["lti/login-init\nlti/launch"]
+            ToriAPI["tori/stream (SSE)\ntts · heartbeat"]
+            StudyAPI["study/parse · upload\ntextbook/parse"]
+            ChatAPI["chat/messages\nchat/upload"]
+            StripeAPI["stripe/webhook"]
+            PushAPI["push/subscribe\npush/vapid-public-key"]
+            V1API["v1/classrooms\n(REST, API-key authed)"]
+        end
+        subgraph Cron["Vercel Cron Jobs (vercel.json)"]
+            BriefingCron["tori-briefings (10 min)"]
+            ChatCron["chat-cleanup (03:00 UTC daily)"]
+            PrivacyCron["parent-consent-cleanup\nsupportive-cleanup (04-05 UTC)"]
+            OtherCron["study-reminders · guardian-digest\nacademy-digest · instructor-payouts\ntenant-analytics · backup-verify"]
+        end
+    end
+
+    subgraph Auth["Auth Layer (lib/auth.ts)"]
+        NextAuth["NextAuth.js\nMagic link (Resend)\nGoogle OAuth\nAzure AD (optional)"]
+        LTI13["LTI 1.3 (lib/lti13.ts)\nOIDC launch · JWKS verify\ndeep-link · grade passback"]
+        TOTP["TOTP 2FA\nlib/totp.ts"]
+    end
+
+    subgraph Data["Data Layer"]
+        CentralDB[("Central DB — Neon\nUser · Tenant · Session\nAdminAuditLog · billing\nToriRun · Academy models")]
+        subgraph BYODB["BYODB (lib/prisma-tenant.ts)"]
+            TenantFactory["getPrismaForTenant(orgId)\nAES-256 decrypt → LRU cache\nschema v1→v3 migrations"]
+            SchoolDB1[("School Postgres A\nProject · Quiz · Submission\nEnrollment · Chat · Grades")]
+            SchoolDB2[("School Postgres B\n(another institution)")]
+        end
+    end
+
+    subgraph AI["Tori AI Layer (lib/tori-llm.ts)"]
+        ToriRouter["Provider Router\ncallLLM() / callLLMText()"]
+        Anthropic["Anthropic API\nclaude-sonnet-4-6\nclaude-haiku-4-5"]
+        OpenAI["OpenAI API\ngpt-4o-mini + TTS"]
+        Gemini["Google Gemini\ngemini-2.5-flash"]
+        SafetyClassifier["safety-classifier.ts\nRegex + Haiku two-stage\nSafetyFlag → school review"]
+    end
+
+    subgraph External["External Services"]
+        Resend["Resend\nMagic links · Digests"]
+        Stripe["Stripe\nBilling · Webhooks"]
+        VBlob["Vercel Blob\nFile storage"]
+        ElevenLabs["ElevenLabs\nTTS audio"]
+        Jitsi["Jitsi\nVideo calls"]
+        PostHog["PostHog\nAnalytics (consent-gated)"]
+        GoogleCR["Google Classroom API\nRoster sync"]
+        Clever["Clever SSO"]
+        ClassLink["ClassLink SSO"]
+    end
+
+    Browser --> MW
+    Mobile --> MW
+    ExtLMS -->|"LTI 1.3 form_post"| LTIAPI
+
+    MW --> AppShell
+    MW --> AcademyRoutes
+    MW --> AuthRoutes
+    MW --> AdminCockpit
+    MW --> API
+
+    AppShell --> NextAuth
+    AppShell --> TenantFactory
+    AppShell --> ToriRouter
+
+    AuthRoutes --> NextAuth
+    LTIAPI --> LTI13
+
+    ToriAPI --> ToriRouter
+    StudyAPI --> ToriRouter
+    StudyAPI --> VBlob
+    ChatAPI --> TenantFactory
+
+    NextAuth --> CentralDB
+    NextAuth --> Resend
+    NextAuth --> GoogleCR
+    TOTP --> CentralDB
+    LTI13 --> CentralDB
+
+    TenantFactory --> CentralDB
+    TenantFactory --> SchoolDB1
+    TenantFactory --> SchoolDB2
+
+    ToriRouter --> Anthropic
+    ToriRouter --> OpenAI
+    ToriRouter --> Gemini
+    ToriRouter --> SafetyClassifier
+
+    BriefingCron --> ToriRouter
+    ChatCron --> CentralDB
+    PrivacyCron --> CentralDB
+    OtherCron --> ToriRouter
+    OtherCron --> Resend
+
+    StripeAPI --> Stripe
+    API --> VBlob
+    API --> ElevenLabs
+    API --> Jitsi
+    API --> PostHog
+    API --> Clever
+    API --> ClassLink

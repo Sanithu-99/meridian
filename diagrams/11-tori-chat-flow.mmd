@@ -1,0 +1,79 @@
+sequenceDiagram
+    actor Student
+    participant UI as Browser UI
+    participant API as /api/tori/stream (SSE)
+    participant Limit as checkLimit()
+    participant Ctx as Context Loaders
+    participant Prompt as Prompt Assembly
+    participant Safety as safety-classifier.ts
+    participant LLM as tori-llm.ts callLLM()
+    participant Provider as Anthropic / OpenAI / Gemini
+    participant DB as Database
+
+    Student->>UI: Types message, hits send
+    UI->>API: POST (SSE) { message, surface, projectId? }
+
+    API->>DB: requireUser() — verify session
+    DB-->>API: session.user
+
+    API->>Limit: checkLimit(userId, AI_REQUEST)
+    Limit->>DB: SELECT UsageCounter WHERE userId + metric + periodKey
+    DB-->>Limit: { count, limit }
+    alt limit exceeded
+        Limit-->>API: { ok: false }
+        API-->>UI: 429 Too Many Requests
+        UI-->>Student: "You've reached your AI limit for this month"
+    end
+
+    par Load context in parallel
+        API->>Ctx: buildGlobalContext(userId) or buildProjectContext(projectId)
+        and
+        API->>Ctx: buildToriPersonalContext(userId)
+        and
+        API->>Ctx: UserToriProfile + toriContext + birthday + timezone
+        and
+        API->>DB: Load accommodation (StudentAccommodation if student)
+    end
+    DB-->>Ctx: Context data
+    Ctx-->>API: Assembled context JSON
+
+    API->>Prompt: Build system prompt
+    Note over Prompt: tori-identity-prelude.ts<br/>tori-personality.ts<br/>TODAY IS {ISO date}<br/>User profile + context<br/>Accommodation adaptations<br/>Last N message history
+
+    Prompt-->>API: systemPrompt string
+
+    API->>Safety: regexClassify(userMessage)
+    Note over Safety: Instant regex check<br/>SELF_HARM · ABUSE · THREAT
+
+    API->>LLM: callLLM({ system, messages, model, provider, apiKey })
+    LLM->>Provider: API call (streaming)
+    Note over LLM,Provider: claude-sonnet-4-6 (educator)<br/>claude-haiku-4-5 (student/brief)<br/>User BYOK key if set (AES-decrypt)
+
+    loop Streaming tokens
+        Provider-->>LLM: Token chunk
+        LLM-->>API: Streamed text
+        API-->>UI: SSE chunk
+        UI-->>Student: Streaming response renders
+    end
+
+    Provider-->>LLM: Stop reason + usage stats
+    LLM-->>API: ToriLLMResult { content, usage, model, stopReason }
+
+    par Post-call actions (non-blocking)
+        API->>DB: recordToriRun({ userId, surface, systemPrompt, userPrompt, response, model, tokensIn, tokensOut, durationMs })
+        and
+        API->>DB: incrementUsage(userId, AI_REQUEST, 1)
+        and
+        API->>DB: upsert ToriUsageStat (content-free counter)
+        and
+        API->>DB: update ToriSession (engagement signals)
+    end
+
+    alt Safety regex hit → run AI classifier
+        Safety->>LLM: aiClassify(userMessage) via Haiku
+        LLM-->>Safety: { flagged, category, severity, reason }
+        Safety->>DB: INSERT SafetyFlag (never blocks response)
+        Note over DB: School admin reviews flag queue<br/>Student gets response regardless
+    end
+
+    Note over Student,UI: Private mode (SupportiveChatSession):<br/>No ToriRun logged<br/>No safety queue<br/>No ToriUsageStat<br/>Hard-deleted after 24h

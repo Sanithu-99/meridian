@@ -1,0 +1,43 @@
+flowchart TB
+    subgraph Identity["Founder / Member Identity"]
+        F["User (role = FOUNDER)\nCreated own Tenant (FOUNDER_ORG)\nAccountType = INDIVIDUAL\nOrgMember.role = OWNER"]
+        M["User (role = MEMBER)\nInvited into Founder's org\nAccountType = ORG_MEMBER\nOrgMember.role varies"]
+    end
+
+    subgraph Workspace["Workspace (Tenant = FOUNDER_ORG)"]
+        W1["Create / manage Tenant\nFounder creates org during onboarding"]
+        W2["Invite team members\nOrgInvite → MEMBER\nroles: ADMIN · MANAGER · CONTRIBUTOR · VIEWER"]
+        W3["Org-scoped projects\nProject.orgId set\nvisible to org admins"]
+        W4["WorkspaceRole-based access\nOWNER / ADMIN > MANAGER > CONTRIBUTOR > VIEWER"]
+    end
+
+    subgraph Projects["Project Features (/f shell)"]
+        P1["Create projects\nProject (isClassroom=false)"]
+        P2["Task board\nTask (BACKLOG/IN_PROGRESS/BLOCKED/DONE)\nlabels · priority · assignee · due date"]
+        P3["Time tracking\nTimeEntry per task\nduration in minutes"]
+        P4["Project notes\nProjectNote (collaborative)\nNoteVisibility: PROJECT|SHARED|PRIVATE"]
+        P5["Documents\nProjectDocument\nNOTES · WHITEBOARD · CANVAS"]
+        P6["Marketing content calendar\nMarketingContent · MarketingAccount\nIG · FB · LinkedIn · TikTok · YouTube"]
+        P7["GitHub integration\nProject.githubRepo\ngithubToken on User"]
+    end
+
+    subgraph ToriFounder["Tori for Founders"]
+        TF1["Project-scoped Tori\nToriSurface=PROJECT\nProjectAssistant (memory per project)"]
+        TF2["ProjectAssistant.memory\nremember_fact tool\npersists across sessions"]
+        TF3["Global Tori\nGlobalToriThread\nKnows project names (not contents)"]
+        TF4["Writing assistant\nlib/writing-assistant.ts\nMarketing / product copy"]
+    end
+
+    subgraph Plans["Plans (Founder path)"]
+        PL1["FREE: 5 projects · 20 AI/month\nteam collab enabled"]
+        PL2["PRO: unlimited projects\n150 AI/month"]
+        PL3["TEAM: per-seat\nunlimited AI"]
+        PL4["Promo code redemption"]
+    end
+
+    F --> Workspace
+    F --> Projects
+    F --> ToriFounder
+    F --> Plans
+    M --> Projects
+    M -.->|"same workspace\nrestricted by WorkspaceRole"| Workspace

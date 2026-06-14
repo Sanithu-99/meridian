@@ -1,36 +1,47 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Diagram Viewer
 
-## Getting Started
+A lightweight Next.js app for browsing and exploring Mermaid diagrams. Features zoom/pan, dark mode, mobile sidebar, and graceful error handling for broken diagrams.
 
-First, run the development server:
+## Running locally
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run dev        # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Drop any `.mmd` files into the `diagrams/` folder — they appear in the sidebar automatically.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Adding diagrams
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. Place `.mmd` files in `diagrams/` at the repo root.
+2. Name them with a numeric prefix for sidebar ordering, e.g. `01-auth-flow.mmd`.
+3. The title shown in the sidebar is derived from the filename: the numeric prefix and hyphens are stripped, words are title-cased.
 
-## Learn More
+## Deploying to Vercel
 
-To learn more about Next.js, take a look at the following resources:
+### Option A — Vercel CLI
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+npm i -g vercel
+vercel                 # follow prompts; framework auto-detected as Next.js
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Option B — Vercel dashboard
 
-## Deploy on Vercel
+1. Push this repo to GitHub.
+2. Go to [vercel.com](https://vercel.com) → **Add New Project** → import the repo.
+3. Leave all defaults. Click **Deploy**.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+No environment variables are required.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+> **Note:** The `diagrams/` folder is committed to the repo and read at build time. To update diagrams on a deployed instance, commit new `.mmd` files and redeploy (or trigger a rebuild via the Vercel dashboard).
+
+## Keyboard / interaction
+
+| Action | How |
+|---|---|
+| Pan | Click and drag |
+| Zoom | Scroll wheel or `−` / `+` buttons |
+| Reset zoom | Click the `100%` percentage button |
+| Dark mode | Moon / sun button (top-right) |
+| Mobile sidebar | Hamburger button (top-left on narrow screens) |
