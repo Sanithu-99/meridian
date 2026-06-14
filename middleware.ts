@@ -3,10 +3,19 @@ import type { NextRequest } from "next/server";
 
 const AUTH_COOKIE = "meridian-auth";
 
-export function middleware(request: NextRequest) {
+async function sha256hex(text: string): Promise<string> {
+  const buf = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(text)
+  );
+  return Array.from(new Uint8Array(buf))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Public paths — never require auth
   if (
     pathname === "/login" ||
     pathname.startsWith("/api/auth") ||
@@ -16,12 +25,12 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const expected = process.env.VIEWER_PASSWORD_HASH;
+  const configured = process.env.VIEWER_PASSWORD;
+  if (!configured) return NextResponse.next(); // no password set → open access (local dev)
 
-  // No password configured (local dev) → allow access
-  if (!expected) return NextResponse.next();
-
+  const expected = await sha256hex(configured);
   const token = request.cookies.get(AUTH_COOKIE)?.value;
+
   if (token !== expected) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
